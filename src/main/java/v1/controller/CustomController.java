@@ -2,15 +2,22 @@ package v1.controller;
 
 import v1.db.CustomDB;
 import v1.db.PSQL_DB;
+import v1.exceptions.IOExceptionWrapper;
+import v1.exceptions.SQLExceptionWrapper;
 import v1.io.ConsoleIO;
 import v1.io.CustomIO;
+
+import java.sql.ResultSet;
+import java.util.Optional;
 
 public class CustomController {
     private final CustomIO io = new ConsoleIO();
     private final CustomDB db = new PSQL_DB();
     private boolean isAuthorised = false;
     private final static String EMAIL_REGEX = "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$";
-    private boolean isAnonymous = true;
+    private String username;
+    private String password;
+    // private boolean isAnonymous = true;
 
     public void run() {
         io.writeln("Welcome to \"Oversea Tea\" shop dear customer.");
@@ -29,22 +36,44 @@ public class CustomController {
             return;
         }
 
+        io.antialiasing(600);
+        if (!isAuthorised) {
+            io.writeln("Hello, dear client.");
+        }
 
+        io.antialiasing(600);
+        io.write("Choose either to deliver to shop or selected address. Type (S/AD): ");
+        param = io.readLine().toUpperCase();
+        io.writeln();
+
+        if ("S".equals(param)) initShopDelivery(isAuthorised);
+        else if ("AD".equals(param)) initAddressDelivery(isAuthorised);
+        else {
+            io.writeln("Invalid parameter.");
+            return;
+        }
+
+//        Optional<ResultSet> shops = db.getShops();
+//        if (shops.isEmpty()) throw new SQLExceptionWrapper("No shops available.");
+//        io.displayShops(shops.get());
+//
+//        io.writeln("Choose ");
     }
 
     private void login() {
         for (int i = 2; i >= 0; i--) {
             io.write("Type your username: ");
-            String username = io.readLine();
+            username = io.readLine();
             io.writeln();
 
             io.write("Type your password: ");
-            String password = io.readLine();
+            password = io.readLine();
             io.writeln();
 
             if (db.verifyUser(username, password)) {
+                io.antialiasing(600);
+                io.writeln("Hello, dear " + username + ".");
                 isAuthorised = true;
-                isAnonymous = false;
                 return;
             } else {
                 if (i == 0) {
@@ -69,11 +98,11 @@ public class CustomController {
             io.writeln("Registration initiated.");
 
             io.write("Enter your username: ");
-            String username = io.readLine();
+            username = io.readLine();
             io.writeln();
 
             io.write("Enter your password: ");
-            String password = io.readLine();
+            password = io.readLine();
             io.writeln();
 
             if (password.length() < 4) {
@@ -131,7 +160,48 @@ public class CustomController {
                     }
                 }
             }
+            db.beginTransaction();
+            db.addClient(username, password, city, country, email);
+            if (db.verifyUser(username, password)) {
+                io.writeln("Wait...");
+                io.antialiasing(600);
+                io.writeln("Your account was successfully registered.");
+                io.antialiasing(600);
+                io.writeln("Hello, dear " + username + ".");
+                isAuthorised = true;
+                db.commit();
+            } else {
+                db.rollback();
+                throw new IOExceptionWrapper("Unable to access client data.");
+            }
+        }
+    }
 
+    private void initShopDelivery(boolean isAuthorised) {
+        String clCity;
+        if (isAuthorised) {
+            clCity = db.getClientCity(username, password);
+        } else {
+            io.write("Enter your city: ");
+            clCity = io.readLine();
+            io.writeln();
+        }
+        areShopsPresent(clCity);
+    }
+
+    private void initAddressDelivery(boolean isAuthorised) {
+
+    }
+
+    private void areShopsPresent(String city) {
+        Optional<ResultSet> shopsOpt = db.getShops(city);
+        if (shopsOpt.isEmpty()) {
+            io.writeln("Unfortunately there are no shops in your city.");
+            io.writeln("Proceeding with delivery to address.");
+
+            initAddressDelivery(isAuthorised);
+        } else {
+            io.displayShops(shopsOpt.get());
         }
     }
 }

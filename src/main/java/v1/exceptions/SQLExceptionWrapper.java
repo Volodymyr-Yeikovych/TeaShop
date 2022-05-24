@@ -6,4 +6,8 @@ public class SQLExceptionWrapper extends RuntimeException{
     public SQLExceptionWrapper(Throwable cause) {
         super(cause);
     }
+
+    public SQLExceptionWrapper(String message) {
+        super(message);
+    }
 }

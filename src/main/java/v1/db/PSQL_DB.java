@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Optional;
 
 public class PSQL_DB implements CustomDB {
     private Connection psqlConnection;
@@ -32,6 +33,78 @@ public class PSQL_DB implements CustomDB {
     }
 
     @Override
+    public void commit() {
+        try {
+            PreparedStatement commit = getConnection().prepareStatement("COMMIT;");
+            commit.executeUpdate();
+        } catch (SQLException e) {
+            throw new SQLExceptionWrapper(e);
+        }
+    }
+
+    @Override
+    public void rollback() {
+        try {
+            PreparedStatement rollback = getConnection().prepareStatement("ROLLBACK;");
+            rollback.executeUpdate();
+        } catch (SQLException e) {
+            throw new SQLExceptionWrapper(e);
+        }
+    }
+
+    @Override
+    public void beginTransaction() {
+        try {
+            PreparedStatement beginTransaction = getConnection().prepareStatement("BEGIN TRANSACTION;");
+            beginTransaction.executeUpdate();
+        } catch (SQLException e) {
+            throw new SQLExceptionWrapper(e);
+        }
+    }
+
+    @Override
+    public String getClientCity(String username, String password) {
+        try {
+            PreparedStatement clCity = getConnection().prepareStatement
+                    ("SELECT city FROM clients WHERE username = ?, password = ?;");
+            clCity.setString(1, username);
+            clCity.setString(2, password);
+            ResultSet city = clCity.executeQuery();
+            city.next();
+            return city.getString("city");
+        } catch (SQLException e) {
+            throw new SQLExceptionWrapper(e);
+        }
+    }
+
+    @Override
+    public Optional<ResultSet> getShops() {
+        try {
+            PreparedStatement shops = getConnection().prepareStatement
+                    ("SELECT * FROM shops ORDER BY sh_id;");
+            return Optional.ofNullable(shops.executeQuery());
+        } catch (SQLException e) {
+            throw new SQLExceptionWrapper(e);
+        }
+    }
+
+    @Override
+    public Optional<ResultSet> getShops(String city) {
+        try {
+            PreparedStatement shops = getConnection().prepareStatement
+                    ("SELECT * FROM shops WHERE city = ? ORDER BY sh_id;",
+                            ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            shops.setString(1, city);
+            ResultSet rs  = shops.executeQuery();
+            if (!rs.next()) return Optional.empty();
+            rs.previous();
+            return Optional.of(rs);
+        } catch (SQLException e) {
+            throw new SQLExceptionWrapper(e);
+        }
+    }
+
+    @Override
     public boolean verifyUser(String name, String password) {
         try {
             PreparedStatement pst = getConnection().prepareStatement
@@ -48,15 +121,15 @@ public class PSQL_DB implements CustomDB {
     @Override
     public void addClient(String username, String password, String city, String country, String email) {
         try {
-            PreparedStatement pst = getConnection().prepareStatement
+            PreparedStatement insertUser = getConnection().prepareStatement
                     ("INSERT INTO clients (cl_name, city, country, email, cl_password) VALUES " +
                             "(?, ?, ?, ?, ?);");
-        pst.setString(1, username);
-        pst.setString(2, city);
-        pst.setString(3, country);
-        pst.setString(4, email);
-        pst.setString(5, password);
-        pst.executeQuery();
+            insertUser.setString(1, username);
+            insertUser.setString(2, city);
+            insertUser.setString(3, country);
+            insertUser.setString(4, email);
+            insertUser.setString(5, password);
+            insertUser.executeUpdate();
         } catch (SQLException e) {
             throw new SQLExceptionWrapper(e);
         }

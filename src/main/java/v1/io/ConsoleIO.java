@@ -1,10 +1,14 @@
 package v1.io;
 
 import v1.exceptions.IOExceptionWrapper;
+import v1.exceptions.SQLExceptionWrapper;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 
 public class ConsoleIO implements CustomIO{
     private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
@@ -47,10 +51,29 @@ public class ConsoleIO implements CustomIO{
         Runtime process = Runtime.getRuntime();
         synchronized (process) {
             try {
-                Runtime.getRuntime().wait(milliseconds);
+                process.wait(milliseconds);
             } catch (InterruptedException e) {
                 throw new IOExceptionWrapper(e);
             }
+        }
+    }
+
+    @Override
+    public void displayShops(ResultSet shops) {
+        try {
+            ResultSetMetaData shopsData = shops.getMetaData();
+            for (int i = 1; i <= shopsData.getColumnCount(); i++) {
+                write(shopsData.getColumnName(i) + " |");
+            }
+            writeln();
+            while (shops.next()) {
+                for (int i = 1; i <= shopsData.getColumnCount(); i++) {
+                    write(shops.getString(i) + " |");
+                }
+                writeln();
+            }
+        } catch (SQLException e) {
+            throw new SQLExceptionWrapper(e);
         }
     }
 
