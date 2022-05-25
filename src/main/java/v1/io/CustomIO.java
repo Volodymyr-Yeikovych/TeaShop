@@ -1,6 +1,7 @@
 package v1.io;
 
-import java.io.IOException;
+import v1.db.CustomDB;
+
 import java.sql.ResultSet;
 
 public interface CustomIO {
@@ -13,7 +14,7 @@ public interface CustomIO {
     void writeln();
     void writef(String format, Object... args);
     void antialiasing(long milliseconds);
-    void displayShops(ResultSet shops);
+    void display(ResultSet shops);
 
     void close();
 }

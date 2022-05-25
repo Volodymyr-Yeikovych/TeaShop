@@ -3,21 +3,27 @@ package v1.controller;
 import v1.db.CustomDB;
 import v1.db.PSQL_DB;
 import v1.exceptions.IOExceptionWrapper;
-import v1.exceptions.SQLExceptionWrapper;
 import v1.io.ConsoleIO;
 import v1.io.CustomIO;
 
 import java.sql.ResultSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 public class CustomController {
+
+    private final static String EMAIL_REGEX = "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$";
+
     private final CustomIO io = new ConsoleIO();
     private final CustomDB db = new PSQL_DB();
+
     private boolean isAuthorised = false;
-    private final static String EMAIL_REGEX = "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$";
+    private boolean shopDelivery = false;
+    private String address;
+    private final Map<Integer, Integer> kgOrder = new HashMap<>();
     private String username;
     private String password;
-    // private boolean isAnonymous = true;
 
     public void run() {
         io.writeln("Welcome to \"Oversea Tea\" shop dear customer.");
@@ -42,6 +48,15 @@ public class CustomController {
         }
 
         io.antialiasing(600);
+        io.writeln("Please see our current stock and choose the tea type by entering its id in the console.");
+        io.writeln();
+        io.display(db.getStock());
+        io.writeln();
+        io.writeln("To end tea selection type \"E\".");
+        if (!collectOrder()) return;
+
+
+        io.antialiasing(600);
         io.write("Choose either to deliver to shop or selected address. Type (S/AD): ");
         param = io.readLine().toUpperCase();
         io.writeln();
@@ -53,11 +68,57 @@ public class CustomController {
             return;
         }
 
+        if (!shopDelivery) io.writeln("Your order will be delivered to address: " + address);
+        else io.writeln("Your order will be delivered to shop. Address: " + address);
 //        Optional<ResultSet> shops = db.getShops();
 //        if (shops.isEmpty()) throw new SQLExceptionWrapper("No shops available.");
 //        io.displayShops(shops.get());
 //
 //        io.writeln("Choose ");
+    }
+
+    private boolean collectOrder() {
+        while (true) {
+            io.write("Choose your tea type: ");
+            String param = io.readLine().toUpperCase();
+            io.writeln();
+
+            if ("E".equals(param)) {
+                io.writeln("Order successfully accepted.");
+                return true;
+            }
+
+            if (!isInteger(param) || !db.checkIfTeaExists(Integer.parseInt(param))) {
+                io.writeln("Invalid value.");
+                return false;
+            }
+
+            io.write("Enter desirable packs number (1 pack = 1 kg): ");
+            String kgNumber = io.readLine();
+            io.writeln();
+
+            if (!isInteger(kgNumber) || !db.checkIfKgNumberAvailable
+                    (Integer.parseInt(param), Integer.parseInt(kgNumber))) {
+                io.writeln("Invalid value.");
+                return false;
+            }
+
+            db.beginTransaction();
+            if (!db.validateStock(Integer.parseInt(param), Integer.parseInt(kgNumber))) db.rollback();
+            db.commit();
+            kgOrder.put(Integer.parseInt(param), Integer.parseInt(kgNumber));
+        }
+    }
+
+    private boolean isInteger(String kgNumber) {
+        if (kgNumber == null) return false;
+
+        try {
+            int num = Integer.parseInt(kgNumber);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        return true;
     }
 
     private void login() {
@@ -186,22 +247,37 @@ public class CustomController {
             clCity = io.readLine();
             io.writeln();
         }
-        areShopsPresent(clCity);
+        checkIfShopsPresent(clCity);
     }
 
     private void initAddressDelivery(boolean isAuthorised) {
-
+        if (isAuthorised) {
+            address = db.getClientAddress(username, password);
+        } else {
+            io.write("Enter your address: ");
+            address = io.readLine();
+            io.writeln();
+        }
     }
 
-    private void areShopsPresent(String city) {
+    private void checkIfShopsPresent(String city) {
         Optional<ResultSet> shopsOpt = db.getShops(city);
         if (shopsOpt.isEmpty()) {
             io.writeln("Unfortunately there are no shops in your city.");
-            io.writeln("Proceeding with delivery to address.");
+            io.writeln("Proceeding with address delivery.");
 
             initAddressDelivery(isAuthorised);
         } else {
-            io.displayShops(shopsOpt.get());
+            shopDelivery = true;
+            if (db.moreThenOneShopPresent(city)) {
+                io.writeln("There are more than one shop in your city. Here is the list.");
+                io.write("Choose the shop by entering its id: ");
+                long shopId = Long.parseLong(io.readLine());
+                io.writeln();
+                address = db.getShopAddress(shopId);
+                return;
+            }
+            address = db.getShopAddress(city);
         }
     }
 }

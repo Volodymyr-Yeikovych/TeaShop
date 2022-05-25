@@ -1,5 +1,6 @@
 package v1.io;
 
+import v1.db.CustomDB;
 import v1.exceptions.IOExceptionWrapper;
 import v1.exceptions.SQLExceptionWrapper;
 
@@ -59,16 +60,16 @@ public class ConsoleIO implements CustomIO{
     }
 
     @Override
-    public void displayShops(ResultSet shops) {
+    public void display(ResultSet set) {
         try {
-            ResultSetMetaData shopsData = shops.getMetaData();
+            ResultSetMetaData shopsData = set.getMetaData();
             for (int i = 1; i <= shopsData.getColumnCount(); i++) {
                 write(shopsData.getColumnName(i) + " |");
             }
             writeln();
-            while (shops.next()) {
+            while (set.next()) {
                 for (int i = 1; i <= shopsData.getColumnCount(); i++) {
-                    write(shops.getString(i) + " |");
+                    write(set.getString(i) + " |");
                 }
                 writeln();
             }
