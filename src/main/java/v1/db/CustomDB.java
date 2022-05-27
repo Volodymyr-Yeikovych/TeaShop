@@ -11,26 +11,40 @@ public interface CustomDB {
     String user = "tea_shop_owner";
 
     void establishConnection();
+
     Connection getConnection();
 
-    void closeConnection();
-    void commit();
-    void rollback();
-    void beginTransaction();
-
     String getClientCity(String username, String password);
+
     Optional<ResultSet> getShops();
+
     Optional<ResultSet> getShops(String city);
+
     String getClientAddress(String username, String password);
+
     ResultSet getStock();
+
     String getShopAddress(long shopId);
+
     String getShopAddress(String city);
 
+    void commit();
+
+    void rollback();
+
+    void beginTransaction();
+
     boolean checkIfKgNumberAvailable(int shopId, int kgRequested);
+
     boolean moreThenOneShopPresent(String city);
-    boolean verifyUser(String name, String password);
-    void addClient (String username, String password, String city, String country, String email);
+
+    boolean userExists(String name, String password);
+
+    void addClient(String username, String password, String street, String city, String country, String email);
+
     boolean checkIfTeaExists(int shopId);
 
     boolean validateStock(int teaId, int kgRequested);
+
+    void closeConnection();
 }

@@ -1,9 +1,7 @@
 package v1.controller;
 
 import v1.db.CustomDB;
-import v1.db.PSQL_DB;
-import v1.exceptions.IOExceptionWrapper;
-import v1.io.ConsoleIO;
+import v1.exceptions.SQLExceptionWrapper;
 import v1.io.CustomIO;
 
 import java.sql.ResultSet;
@@ -13,17 +11,23 @@ import java.util.Optional;
 
 public class CustomController {
 
-    private final static String EMAIL_REGEX = "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$";
+    private final static String EMAIL_REGEX = "^([a-zA-Z0-9_\\-.]+)@([a-zA-Z0-9_\\-.]+)\\.([a-zA-Z]{2,5})$";
 
-    private final CustomIO io = new ConsoleIO();
-    private final CustomDB db = new PSQL_DB();
+    private final CustomIO io;
+    private final CustomDB db;
 
     private boolean isAuthorised = false;
     private boolean shopDelivery = false;
+
     private String address;
     private final Map<Integer, Integer> kgOrder = new HashMap<>();
     private String username;
     private String password;
+
+    public CustomController(CustomIO io, CustomDB db){
+        this.io = io;
+        this.db = db;
+    }
 
     public void run() {
         io.writeln("Welcome to \"Oversea Tea\" shop dear customer.");
@@ -55,7 +59,6 @@ public class CustomController {
         io.writeln("To end tea selection type \"E\".");
         if (!collectOrder()) return;
 
-
         io.antialiasing(600);
         io.write("Choose either to deliver to shop or selected address. Type (S/AD): ");
         param = io.readLine().toUpperCase();
@@ -70,22 +73,21 @@ public class CustomController {
 
         if (!shopDelivery) io.writeln("Your order will be delivered to address: " + address);
         else io.writeln("Your order will be delivered to shop. Address: " + address);
-//        Optional<ResultSet> shops = db.getShops();
-//        if (shops.isEmpty()) throw new SQLExceptionWrapper("No shops available.");
-//        io.displayShops(shops.get());
-//
-//        io.writeln("Choose ");
     }
 
+    @SuppressWarnings("all")
     private boolean collectOrder() {
         while (true) {
             io.write("Choose your tea type: ");
             String param = io.readLine().toUpperCase();
             io.writeln();
 
-            if ("E".equals(param)) {
+            if ("E".equals(param) && !kgOrder.isEmpty()) {
                 io.writeln("Order successfully accepted.");
                 return true;
+            } else if ("E".equals(param) && kgOrder.isEmpty()) {
+                io.writeln("Error: Empty order.");
+                return false;
             }
 
             if (!isInteger(param) || !db.checkIfTeaExists(Integer.parseInt(param))) {
@@ -110,15 +112,16 @@ public class CustomController {
         }
     }
 
+    @SuppressWarnings("all")
     private boolean isInteger(String kgNumber) {
         if (kgNumber == null) return false;
 
         try {
             int num = Integer.parseInt(kgNumber);
+            return true;
         } catch (NumberFormatException e) {
             return false;
         }
-        return true;
     }
 
     private void login() {
@@ -131,7 +134,7 @@ public class CustomController {
             password = io.readLine();
             io.writeln();
 
-            if (db.verifyUser(username, password)) {
+            if (db.userExists(username, password)) {
                 io.antialiasing(600);
                 io.writeln("Hello, dear " + username + ".");
                 isAuthorised = true;
@@ -142,11 +145,11 @@ public class CustomController {
                     return;
                 }
                 io.writeln("Username or password is incorrect.");
-                io.write("Try again (" + (i) + " times left) or continue as anonymous (Y/A): ");
+                io.write("Try again (" + (i) + " times left) or continue as anonymous (C/A): ");
                 String param = io.readLine().toUpperCase();
                 io.writeln();
                 if ("A".equals(param)) return;
-                else if (!"Y".equals(param)) {
+                else if (!"C".equals(param)) {
                     io.writeln("Invalid parameter. Continuing as anonymous.");
                     return;
                 }
@@ -155,87 +158,86 @@ public class CustomController {
     }
 
     private void register() {
-        for (int i = 3; i > 0; i--) {
-            io.writeln("Registration initiated.");
+        io.writeln("Registration initiated.");
 
-            io.write("Enter your username: ");
-            username = io.readLine();
-            io.writeln();
+        io.write("Enter your username: ");
+        username = io.readLine();
+        io.writeln();
 
-            io.write("Enter your password: ");
-            password = io.readLine();
-            io.writeln();
+        io.write("Enter your password: ");
+        password = io.readLine();
+        io.writeln();
 
-            if (password.length() < 4) {
-                for (int j = 3; j > 0; j--) {
-                    io.writeln("Invalid password.");
-                    io.write("Enter valid password or proceed as anonymous (E/A): ");
-                    String param = io.readLine().toUpperCase();
+        if (password.length() < 4) {
+            for (int j = 3; j > 0; j--) {
+                io.writeln("Invalid password.");
+                io.write("Enter valid password or proceed as anonymous (E/A): ");
+                String param = io.readLine().toUpperCase();
+                io.writeln();
+
+                if ("E".equals(param)) {
+                    io.write("Enter your password: ");
+                    password = io.readLine();
                     io.writeln();
-
-                    if ("E".equals(param)) {
-                        io.write("Enter your password: ");
-                        password = io.readLine();
-                        io.writeln();
-                        if (password.length() > 4) break;
-                    } else if ("A".equals(param)) {
-                        io.writeln("Proceeding as anonymous.");
-                        return;
-                    } else {
-                        io.writeln("Invalid param. Proceeding as anonymous.");
-                        return;
-                    }
+                    if (password.length() > 4) break;
+                } else if ("A".equals(param)) {
+                    io.writeln("Proceeding as anonymous.");
+                    return;
+                } else {
+                    io.writeln("Invalid param. Proceeding as anonymous.");
+                    return;
                 }
-            }
-
-            io.write("Enter your city: ");
-            String city = io.readLine();
-            io.writeln();
-
-            io.write("Enter your country: ");
-            String country = io.readLine();
-            io.writeln();
-
-            io.write("Enter your email: ");
-            String email = io.readLine();
-            io.writeln();
-
-            if (!email.matches(EMAIL_REGEX)) {
-                for (int j = 3; j > 0; j--) {
-                    io.writeln("Invalid email.");
-                    io.write("Enter valid email or proceed as anonymous (E/A): ");
-                    String param = io.readLine().toUpperCase();
-                    io.writeln();
-
-                    if ("E".equals(param)) {
-                        io.write("Enter your email: ");
-                        email = io.readLine();
-                        io.writeln();
-                        if (email.matches(EMAIL_REGEX)) break;
-                    } else if ("A".equals(param)) {
-                        io.writeln("Proceeding as anonymous.");
-                        return;
-                    } else {
-                        io.writeln("Invalid param. Proceeding as anonymous.");
-                        return;
-                    }
-                }
-            }
-            db.beginTransaction();
-            db.addClient(username, password, city, country, email);
-            if (db.verifyUser(username, password)) {
-                io.writeln("Wait...");
-                io.antialiasing(600);
-                io.writeln("Your account was successfully registered.");
-                io.antialiasing(600);
-                io.writeln("Hello, dear " + username + ".");
-                isAuthorised = true;
-                db.commit();
-            } else {
-                db.rollback();
-                throw new IOExceptionWrapper("Unable to access client data.");
             }
         }
+
+        io.write("Enter your street: ");
+        String street = io.readLine();
+        io.writeln();
+
+        io.write("Enter your city: ");
+        String city = io.readLine();
+        io.writeln();
+
+        io.write("Enter your country: ");
+        String country = io.readLine();
+        io.writeln();
+
+        io.write("Enter your email: ");
+        String email = io.readLine();
+        io.writeln();
+
+        if (!email.matches(EMAIL_REGEX)) {
+            for (int j = 3; j > 0; j--) {
+                io.writeln("Invalid email.");
+                io.write("Enter valid email or proceed as anonymous (E/A): ");
+                String param = io.readLine().toUpperCase();
+                io.writeln();
+
+                if ("E".equals(param)) {
+                    io.write("Enter your email: ");
+                    email = io.readLine();
+                    io.writeln();
+                    if (email.matches(EMAIL_REGEX)) break;
+                } else if ("A".equals(param)) {
+                    io.writeln("Proceeding as anonymous.");
+                    return;
+                } else {
+                    io.writeln("Invalid param. Proceeding as anonymous.");
+                    return;
+                }
+            }
+        }
+
+        if (db.userExists(username, password))
+            throw new SQLExceptionWrapper("Such client is already registered.");
+
+        db.addClient(username, password, street, city, country, email);
+        io.writeln("Wait...");
+        io.antialiasing(600);
+        io.writeln("Your account was successfully registered.");
+        io.antialiasing(600);
+        io.writeln("Hello, dear " + username + ".");
+        isAuthorised = true;
     }
 
     private void initShopDelivery(boolean isAuthorised) {
@@ -263,7 +265,7 @@ public class CustomController {
     private void checkIfShopsPresent(String city) {
         Optional<ResultSet> shopsOpt = db.getShops(city);
         if (shopsOpt.isEmpty()) {
-            io.writeln("Unfortunately there are no shops in your city.");
+            io.writeln("Unfortunately there are no shops in your city or selected city does not exist.");
             io.writeln("Proceeding with address delivery.");
 
             initAddressDelivery(isAuthorised);
@@ -279,5 +281,10 @@ public class CustomController {
             }
             address = db.getShopAddress(city);
         }
+    }
+
+    public void close() {
+        this.io.close();
+        this.db.closeConnection();
     }
 }
