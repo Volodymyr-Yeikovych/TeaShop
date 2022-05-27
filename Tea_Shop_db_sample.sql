@@ -197,3 +197,8 @@ GRANT ALL ON ALL TABLES IN SCHEMA public TO tea_shop_owner;
 
 ALTER TABLE clients 
 ADD CONSTRAINT cl_name UNIQUE(cl_name);
+
+GRANT USAGE, SELECT ON SEQUENCE clients_cl_id_seq TO tea_shop_owner;
+
+ALTER TABLE clients
+DROP CONSTRAINT email;
