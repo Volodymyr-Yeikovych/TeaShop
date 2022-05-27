@@ -64,8 +64,8 @@ public class CustomController {
         param = io.readLine().toUpperCase();
         io.writeln();
 
-        if ("S".equals(param)) initShopDelivery(isAuthorised);
-        else if ("AD".equals(param)) initAddressDelivery(isAuthorised);
+        if ("S".equals(param)) initShopDelivery();
+        else if ("AD".equals(param)) initAddressDelivery();
         else {
             io.writeln("Invalid parameter.");
             return;
@@ -240,7 +240,7 @@ public class CustomController {
         isAuthorised = true;
     }
 
-    private void initShopDelivery(boolean isAuthorised) {
+    private void initShopDelivery() {
         String clCity;
         if (isAuthorised) {
             clCity = db.getClientCity(username, password);
@@ -252,7 +252,7 @@ public class CustomController {
         checkIfShopsPresent(clCity);
     }
 
-    private void initAddressDelivery(boolean isAuthorised) {
+    private void initAddressDelivery() {
         if (isAuthorised) {
             address = db.getClientAddress(username, password);
         } else {
@@ -268,7 +268,7 @@ public class CustomController {
             io.writeln("Unfortunately there are no shops in your city or selected city does not exist.");
             io.writeln("Proceeding with address delivery.");
 
-            initAddressDelivery(isAuthorised);
+            initAddressDelivery();
         } else {
             shopDelivery = true;
             if (db.moreThenOneShopPresent(city)) {
