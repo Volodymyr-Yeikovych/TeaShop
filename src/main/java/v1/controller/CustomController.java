@@ -284,7 +284,7 @@ public class CustomController {
     }
 
     public void close() {
-        this.io.close();
-        this.db.closeConnection();
+        io.close();
+        db.closeConnection();
     }
 }
